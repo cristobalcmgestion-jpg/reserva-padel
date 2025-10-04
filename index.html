@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reservas Pista de Pádel - Comunidad</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-green-50 to-blue-50 min-h-screen">
+    <div id="app" class="p-4 max-w-6xl mx-auto">
+        <!-- La aplicación se cargará aquí -->
+    </div>
+
+    <script>
+        // Estado de la aplicación
+        let bookings = [];
+        let showForm = false;
+
+        // Configuración de horarios - cada slot dura 1h 30min
+        const morningSlots = ['08:00', '09:30', '11:00', '12:30'];
+        const eveningSlots = ['17:00', '18:30', '20:00'];
+        const allSlots = [...morningSlots, ...eveningSlots];
+
+        // Obtener próximos 7 días
+        function getNextDays(days) {
+            const dates = [];
+            const today = new Date();
+            for (let i = 0; i < days; i++) {
+                const date = new Date(today);
+                date.setDate(today.getDate() + i);
+                dates.push(date.toISOString().split('T')[0]);
+            }
+            return dates;
+        }
+
+        // Formatear fecha
+        function formatDate(dateStr) {
+            const date = new Date(dateStr + 'T00:00:00');
+            const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+            const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+            return `${days[date.getDay()]} ${date.getDate()} ${months[date.getMonth()]}`;
+        }
+
+        // Calcular hora de fin (1h 30min después)
+        function getEndTime(startTime) {
+            const [hours, minutes] = startTime.split(':').map(Number);
+            let endHours = hours + 1;
+            let endMinutes = minutes + 30;
+            
+            if (endMinutes >= 60) {
+                endHours += 1;
+                endMinutes -= 60;
+            }
+            
+            return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
+        }
+
+        // Verificar si un slot está reservado
+        function isSlotBooked(date, time) {
+            return bookings.some(b => b.date === date && b.time === time);
+        }
+
+        // Crear nueva reserva
+        function createBooking() {
+            const date = document.getElementById('bookingDate').value;
+            const time = document.getElementById('bookingTime').value;
+            const name = document.getElementById('playerName').value;
+            const players = document.getElementById('numPlayers').value;
+
+            if (!date || !time || !name) {
+                alert('Por favor completa todos los campos');
+                return;
+            }
+
+            if (isSlotBooked(date, time)) {
+                alert('Esta hora ya está reservada');
+                return;
+            }
+
+            const newBooking = {
+                id: Date.now(),
+                date: date,
+                time: time,
+                endTime: getEndTime(time),
+                playerName: name,
+                numPlayers: players,
+                createdAt: new Date().toLocaleString('es-ES')
+            };
+
+            bookings.push(newBooking);
+            showForm = false;
+            alert('¡Reserva realizada con éxito!');
+            render();
+        }
+
+        // Eliminar reserva
+        function deleteBooking(id) {
+            if (confirm('¿Estás seguro de que quieres cancelar esta reserva?')) {
+                bookings = bookings.filter(b => b.id !== id);
+                render();
+            }
+        }
+
+        // Alternar formulario
+        function toggleForm() {
+            showForm = !showForm;
+            render();
+        }
+
+        // Renderizar la aplicación
+        function render() {
+            const availableDates = getNextDays(7);
+            const app = document.getElementById('app');
+
+            app.innerHTML = `
+                <!-- Header -->
+                <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                    <div class="flex items-center justify-between flex-wrap gap-4">
+                        <div>
+                            <h1 class="text-3xl font-bold text-gray-800 mb-2">Pista de Pádel</h1>
+                            <p class="text-gray-600">Comunidad de Propietarios</p>
+                        </div>
+                        <button onclick="toggleForm()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg transition-colors">
+                            ➕ Nueva Reserva
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Formulario de reserva -->
+                ${showForm ? `
+                <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Nueva Reserva</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-2">📅 Fecha</label>
+                            <select id="bookingDate" class="w-full p-3 border border-gray-300 rounded-lg">
+                                <option value="">Selecciona una fecha</option>
+                                ${availableDates.map(date => `
+                                    <option value="${date}">${formatDate(date)}</option>
+                                `).join('')}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-2">🕐 Hora de Inicio</label>
+                            <select id="bookingTime" class="w-full p-3 border border-gray-300 rounded-lg">
+                                <option value="">Selecciona una hora</option>
+                                <optgroup label="Mañana (08:00 - 14:00)">
+                                    ${morningSlots.map(time => `
+                                        <option value="${time}">${time} - ${getEndTime(time)}</option>
+                                    `).join('')}
+                                </optgroup>
+                                <optgroup label="Tarde (17:00 - 21:30)">
+                                    ${eveningSlots.map(time => `
+                                        <option value="${time}">${time} - ${getEndTime(time)}</option>
+                                    `).join('')}
+                                </optgroup>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-2">👤 Nombre del Responsable</label>
+                            <input type="text" id="playerName" placeholder="Ej: Juan Pérez" 
+                                   class="w-full p-3 border border-gray-300 rounded-lg">
+                        </div>
+
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-2">Número de Jugadores</label>
+                            <select id="numPlayers" class="w-full p-3 border border-gray-300 rounded-lg">
+                                <option value="2">2 jugadores</option>
+                                <option value="3">3 jugadores</option>
+                                <option value="4">4 jugadores</option>
+                            </select>
+                        </div>
+
+                        <div class="flex gap-3">
+                            <button onclick="createBooking()" class="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold">
+                                Confirmar Reserva
+                            </button>
+                            <button onclick="toggleForm()" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 py-3 rounded-lg font-semibold">
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+
+                <!-- Calendario de disponibilidad -->
+                <div class="bg-white rounded-lg shadow-lg p-6 mb-6 overflow-x-auto">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Disponibilidad Esta Semana</h2>
+                    <table class="w-full min-w-max">
+                        <thead>
+                            <tr>
+                                <th class="p-2 text-left text-gray-700 font-semibold">Horario</th>
+                                ${availableDates.map(date => `
+                                    <th class="p-2 text-center text-gray-700 font-semibold">${formatDate(date)}</th>
+                                `).join('')}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${allSlots.map(time => `
+                                <tr class="border-t">
+                                    <td class="p-2 font-semibold text-gray-700 whitespace-nowrap">${time} - ${getEndTime(time)}</td>
+                                    ${availableDates.map(date => {
+                                        const booked = isSlotBooked(date, time);
+                                        return `
+                                            <td class="p-2 text-center">
+                                                <div class="py-2 px-1 rounded ${booked ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}">
+                                                    ${booked ? 'Ocupado' : 'Libre'}
+                                                </div>
+                                            </td>
+                                        `;
+                                    }).join('')}
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Lista de reservas -->
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Reservas Activas</h2>
+                    ${bookings.length === 0 ? `
+                        <p class="text-gray-500 text-center py-8">No hay reservas todavía</p>
+                    ` : `
+                        <div class="space-y-3">
+                            ${bookings
+                                .sort((a, b) => new Date(a.date + 'T' + a.time) - new Date(b.date + 'T' + b.time))
+                                .map(booking => `
+                                    <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                                        <div class="flex justify-between items-start flex-wrap gap-4">
+                                            <div>
+                                                <div class="flex items-center gap-2 mb-2 flex-wrap">
+                                                    <span class="font-semibold text-lg">📅 ${formatDate(booking.date)}</span>
+                                                    <span class="font-semibold text-lg">🕐 ${booking.time} - ${booking.endTime}</span>
+                                                </div>
+                                                <div class="text-gray-700">
+                                                    <span class="font-semibold">👤 ${booking.playerName}</span>
+                                                    <span class="text-gray-500 ml-2">(${booking.numPlayers} jugadores)</span>
+                                                </div>
+                                                <div class="text-sm text-gray-500 mt-1">
+                                                    Reservado el ${booking.createdAt}
+                                                </div>
+                                            </div>
+                                            <button onclick="deleteBooking(${booking.id})" 
+                                                    class="bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded-lg transition-colors">
+                                                🗑️ Cancelar
+                                            </button>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                        </div>
+                    `}
+                </div>
+
+                <!-- Información de horarios -->
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
+                    <h3 class="font-semibold text-blue-900 mb-2">Horarios Disponibles</h3>
+                    <ul class="text-blue-800 space-y-1">
+                        <li>• Mañanas: 08:00h - 14:00h</li>
+                        <li>• Tardes: 17:00h - 21:30h</li>
+                        <li>• Duración: 1 hora y 30 minutos por reserva</li>
+                    </ul>
+                </div>
+            `;
+        }
+
+        // Inicializar la aplicación
+        render();
+    </script>
+</body>
+</html>
